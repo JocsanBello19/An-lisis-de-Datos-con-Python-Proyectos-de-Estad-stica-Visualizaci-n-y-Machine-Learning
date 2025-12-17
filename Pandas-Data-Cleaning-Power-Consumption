@@ -1,0 +1,150 @@
+# -*- coding: utf-8 -*-
+"""
+Universidad Simón Bolívar
+CI2127 - Algoritmos y Programación
+Tarea 4 - Parte 1
+Nombre: Jocsan Bello
+Carnet: 21-10065
+
+"""
+
+import pandas as pd
+
+DATOS_TXT = r"C:\Users\user\Downloads\datos.txt" # Ruta que hemos establecido para incluir el nombre del archivo
+
+def cargar_datos(ruta_archivo):
+    """
+    Cargamos los datos desde el archivo de texto especificado.
+
+    Args:
+        ruta_archivo (str): La ruta al archivo 'datos.txt'.
+
+    Returns:
+        pandas.DataFrame: Un DataFrame con los datos cargados del archivo.
+                          Retorna None si el archivo no se encuentra.
+    """
+    print(f"Cargando datos desde: '{ruta_archivo}'...")
+    try:
+        # Nombres de las columnas según la descripción de los datos
+        column_names = [
+            'Date', 'Time', 'Global_active_power', 'Global_reactive_power',
+            'Voltage', 'Global_intensity', 'Sub_metering_1', 'Sub_metering_2',
+            'Sub_metering_3'
+        ]
+        
+        # Leemos nuestro archivo. El separador es el punto y coma (;).
+        # Los valores faltantes están marcados con '?'.
+        # Combinamos 'Date' y 'Time' en una sola columna 'datetime' al leer.
+        df = pd.read_csv(
+            ruta_archivo,
+            sep=';',
+            header=0,
+            names=column_names,
+            low_memory=False,
+            na_values=['?'],
+            parse_dates={'datetime': ['Date', 'Time']},
+            index_col='datetime'
+        )
+        print("Datos cargados exitosamente.")
+        return df
+    except FileNotFoundError:
+        print(f"Error: El archivo '{ruta_archivo}' no fue encontrado.")
+        print("Por favor, asegúrate de que el archivo DATOS.TXT esté en la misma")
+        print("carpeta que el script o actualiza la variable 'DATOS_TXT'.")
+        return None
+
+def limpiar_y_validar_datos(df):
+    """
+    Limpia el DataFrame eliminando filas con valores nulos y valores fuera de rango.
+
+    Args:
+        df (pandas.DataFrame): El DataFrame original.
+
+    Returns:
+        pandas.DataFrame: El DataFrame limpio y validado.
+    """
+    print("\n--- Iniciando Limpieza y Validación de Datos ---")
+    
+    # 1. Manejamos los datos faltantes
+    print(f"Forma inicial del DataFrame: {df.shape}")
+    filas_antes = df.shape[0]
+    
+    # Eliminamos todas las filas que contengan al menos un valor NaN 
+    df_limpio = df.dropna()
+    filas_despues_na = df_limpio.shape[0]
+    print(f"Filas eliminadas por valores faltantes: {filas_antes - filas_despues_na}")
+    print(f"Forma tras eliminar nulos: {df_limpio.shape}")
+    
+    # Asegurar que los tipos de datos son correctos (ya deberían ser float)
+    for col in ['Global_active_power', 'Global_reactive_power', 'Voltage', 'Global_intensity']:
+        df_limpio[col] = df_limpio[col].astype(float)
+
+    # 2. Manejo de valores fuera de rango 
+    filas_antes_rango = df_limpio.shape[0]
+
+    # Rangos válidos sugeridos 
+    df_limpio = df_limpio[
+        (df_limpio['Voltage'] >= 220) & (df_limpio['Voltage'] <= 250) &
+        (df_limpio['Global_intensity'] >= 0) & (df_limpio['Global_intensity'] <= 30) &
+        (df_limpio['Global_active_power'] >= 0) & (df_limpio['Global_active_power'] <= 7) &
+        (df_limpio['Global_reactive_power'] >= 0) & (df_limpio['Global_reactive_power'] <= 2)
+    ]
+    
+    filas_despues_rango = df_limpio.shape[0]
+    print(f"Filas eliminadas por valores fuera de rango: {filas_antes_rango - filas_despues_rango}")
+    
+    total_filas_eliminadas = filas_antes - filas_despues_rango
+    porcentaje_eliminado = (total_filas_eliminadas / filas_antes) * 100
+    
+    print(f"\nLimpieza completada. Forma final del DataFrame: {df_limpio.shape}")
+    print(f"Total de filas eliminadas: {total_filas_eliminadas} ({porcentaje_eliminado:.2f}% de los datos originales)")
+    
+    return df_limpio
+
+def realizar_analisis_basico(df):
+    """
+    Realiza y muestra un análisis básico de los datos del DataFrame.
+
+    Args:
+        df (pandas.DataFrame): El DataFrame limpio y validado.
+    """
+    print("\n--- Iniciando Análisis Básico de Datos ---")
+    
+    # Columnas de interés para el análisis
+    columnas_analisis = [
+        'Global_active_power', 
+        'Global_reactive_power', 
+        'Voltage', 
+        'Global_intensity'
+    ]
+    
+    # 1. Cálculo de media y mediana
+    print("\n1. Media y Mediana de las principales variables:")
+    for col in columnas_analisis:
+        media = df[col].mean()
+        mediana = df[col].median()
+        print(f"  - {col}:")
+        print(f"    - Media: {media:.4f}")
+        print(f"    - Mediana: {mediana:.4f}")
+        
+    # 2. Ejemplo de agrupación de datos
+    print("\n2. Agrupación: Consumo promedio de Potencia Activa Global por Año:")
+    # Extraemos el año del índice 'datetime' para agrupar
+    consumo_anual = df['Global_active_power'].resample('A').mean()
+    print(consumo_anual.to_string(float_format="{:.4f}".format))
+
+
+# --- Bloque Principal de Ejecución ---
+if __name__ == "__main__":
+    # Parte 1 (Carga, limpieza y análisis básico) 
+    
+    # 1. Cargar datos
+    datos_df = cargar_datos(DATOS_TXT)
+    
+    if datos_df is not None:
+        # 2. Documentamos el contenido y rangos (realizado a través de la limpieza)
+        # 3. Detectamos los valores faltantes/fuera de rango y ajustamos
+        datos_limpios_df = limpiar_y_validar_datos(datos_df)
+        
+        # 4. Análisis básico con pandas
+        realizar_analisis_basico(datos_limpios_df)
