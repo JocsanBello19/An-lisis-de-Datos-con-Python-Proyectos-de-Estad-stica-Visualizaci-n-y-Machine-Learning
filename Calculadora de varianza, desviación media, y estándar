@@ -10,29 +10,13 @@ def calculate(list_of_numbers):
     """
 
     # 1. EL GUARDIÁN: Validación de datos
-    # Antes de intentar cualquier matemática, nos aseguramos de que la entrada sea correcta.
-    # Si no son 9 números, no podemos hacer una matriz de 3x3.
     if len(list_of_numbers) != 9:
         raise ValueError("List must contain nine numbers.")
 
     # 2. LA TRANSFORMACIÓN: De lista a Matriz
-    # Convertimos la lista plana en un array de Numpy y le damos forma de 3x3.
-    # Input: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    # Matriz: 
-    # [[0, 1, 2],
-    #  [3, 4, 5],
-    #  [6, 7, 8]]
     matriz = np.array(list_of_numbers).reshape(3, 3)
 
     # 3. EL CÁLCULO: Generación del reporte
-    # Numpy hace el trabajo pesado. 
-    # axis=0 calcula hacia abajo (columnas).
-    # axis=1 calcula hacia los lados (filas).
-    # Sin axis calcula sobre todos los elementos (aplanado).
-    
-    # Nota técnica: Usamos .tolist() porque la salida requiere listas de Python, 
-    # no arrays de Numpy.
-    
     reporte = {
         'mean': [
             matriz.mean(axis=0).tolist(), 
@@ -67,3 +51,18 @@ def calculate(list_of_numbers):
     }
 
     return reporte
+
+# --- ZONA DE EJECUCIÓN ---
+# Este bloque permite que el archivo se ejecute por sí mismo para ver resultados inmediatos.
+if __name__ == "__main__":
+    print("--- Ejecutando cálculo de prueba ---")
+    try:
+        # Usamos los datos de ejemplo del enunciado
+        list_of_numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        resultado = calculate(list_of_numbers)
+        
+        # Imprimimos el resultado de forma legible
+        print(resultado)
+        
+    except Exception as e:
+        print(f"Ocurrió un error: {e}")
