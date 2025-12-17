@@ -1,0 +1,93 @@
+import pandas as pd
+
+def calculate_demographic_data(print_data=True):
+    # 1. CARGA DE DATOS
+    # Leemos el archivo CSV. Pandas lo convierte en un DataFrame (una tabla potente).
+    df = pd.read_csv('data.csv')
+
+    # 2. ANÁLISIS POR RAZA
+    # ¿Cuántas personas de cada raza hay? .value_counts() hace el censo automático.
+    race_count = df['race'].value_counts()
+
+    # 3. EDAD PROMEDIO DE LOS HOMBRES
+    # Filtramos la columna 'sex', tomamos la 'age' y calculamos la media.
+    average_age_men = round(df[df['sex'] == 'Male']['age'].mean(), 1)
+
+    # 4. PORCENTAJE DE LICENCIADOS (Bachelors)
+    # Calculamos cuántos tienen Bachelors sobre el total de filas.
+    num_bachelors = len(df[df['education'] == 'Bachelors'])
+    total_people = len(df)
+    percentage_bachelors = round((num_bachelors / total_people) * 100, 1)
+
+    # 5. EDUCACIÓN AVANZADA VS SALARIO
+    # Definimos quiénes tienen educación avanzada
+    higher_education = df['education'].isin(['Bachelors', 'Masters', 'Doctorate'])
+    lower_education = ~higher_education # El símbolo ~ significa "lo contrario"
+
+    # ¿Qué porcentaje de los de educación avanzada ganan >50K?
+    # Filtramos por educación Y por salario
+    rich_higher_ed = df[higher_education & (df['salary'] == '>50K')]
+    higher_education_rich = round((len(rich_higher_ed) / len(df[higher_education])) * 100, 1)
+
+    # ¿Qué porcentaje de los SIN educación avanzada ganan >50K?
+    rich_lower_ed = df[lower_education & (df['salary'] == '>50K')]
+    lower_education_rich = round((len(rich_lower_ed) / len(df[lower_education])) * 100, 1)
+
+    # 6. TRABAJO MÍNIMO
+    # ¿Cuál es el mínimo de horas que alguien trabaja a la semana?
+    min_work_hours = df['hours-per-week'].min()
+
+    # ¿Qué porcentaje de los que trabajan el mínimo ganan >50K?
+    num_min_workers = df[df['hours-per-week'] == min_work_hours]
+    rich_percentage = round((len(num_min_workers[num_min_workers['salary'] == '>50K']) / len(num_min_workers)) * 100, 1)
+
+    # 7. PAÍS CON MAYOR PORCENTAJE DE RICOS (>50K)
+    # Calculamos cuántas personas hay por país
+    country_counts = df['native-country'].value_counts()
+    # Calculamos cuántos ricos hay por país
+    rich_counts = df[df['salary'] == '>50K']['native-country'].value_counts()
+    
+    # Dividimos para sacar el porcentaje por país
+    percentage_per_country = (rich_counts / country_counts) * 100
+    
+    highest_earning_country = percentage_per_country.idxmax()
+    highest_earning_country_percentage = round(percentage_per_country.max(), 1)
+
+    # 8. OCUPACIÓN MÁS POPULAR EN INDIA (>50K)
+    # Filtramos: Gente de India Y que gane más de 50K
+    india_rich = df[(df['native-country'] == 'India') & (df['salary'] == '>50K')]
+    top_IN_occupation = india_rich['occupation'].value_counts().idxmax()
+
+    # --- NO MODIFICAR ABAJO DE ESTA LÍNEA (Configuración de salida de FreeCodeCamp) ---
+
+    if print_data:
+        print("Number of each race:\n", race_count) 
+        print("Average age of men:", average_age_men)
+        print(f"Percentage with Bachelors: {percentage_bachelors}%")
+        print(f"Percentage with higher education that earn >50K: {higher_education_rich}%")
+        print(f"Percentage without higher education that earn >50K: {lower_education_rich}%")
+        print(f"Min work time: {min_work_hours} hours/week")
+        print(f"Percentage of rich among those who work fewest hours: {rich_percentage}%")
+        print("Country with highest percentage of rich:", highest_earning_country)
+        print(f"Highest percentage of rich people in country: {highest_earning_country_percentage}%")
+        print("Top occupations in India:", top_IN_occupation)
+
+    return {
+        'race_count': race_count,
+        'average_age_men': average_age_men,
+        'percentage_bachelors': percentage_bachelors,
+        'higher_education_rich': higher_education_rich,
+        'lower_education_rich': lower_education_rich,
+        'min_work_hours': min_work_hours,
+        'rich_percentage': rich_percentage,
+        'highest_earning_country': highest_earning_country,
+        'highest_earning_country_percentage': highest_earning_country_percentage,
+        'top_IN_occupation': top_IN_occupation
+    }
+    
+# --- ESTO ES LO QUE ACTIVA LA SALIDA EN CONSOLA ---
+
+# Llamamos a la función. 
+# El argumento 'print_data=True' activa todos los 'print' que pusimos dentro.
+if __name__ == "__main__":
+    calculate_demographic_data()
