@@ -1,0 +1,349 @@
+# -*- coding: utf-8 -*-
+"""
+Universidad Simón Bolívar
+CI2127 - Algoritmos y
+Programación
+Tarea 4 - Parte 2
+Nombre: Jocsan Bello
+Carnet: 21-10065
+
+"""
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+DATOS_TXT = r"C:\Users\user\Downloads\datos.txt"
+# Ruta que hemos establecido para incluir el nombre del archivo
+
+def cargar_datos(ruta_archivo):
+    """
+    Cargamos los datos desde el archivo de
+    texto especificado.
+
+    Args:
+        ruta_archivo (str): La ruta al archivo
+        'datos.txt'.
+
+    Returns:
+        pandas.DataFrame: Un DataFrame con los
+        datos cargados del archivo.
+                          Retorna None si el
+                          archivo no se encuentra.
+
+    """
+    print(f"Cargando datos desde: '{ruta_archivo}'...")
+    try:
+        # Nombres de las columnas según la descripción de los datos
+        column_names = [
+            'Date', 'Time', 'Global_active_power', 'Global_reactive_power',
+            'Voltage', 'Global_intensity', 'Sub_metering_1', 'Sub_metering_2',
+            'Sub_metering_3'
+        ]
+
+        # Leemos nuestro archivo. El separador es el punto y coma (;).
+        # Los valores faltantes están marcados con '?'.
+        # Combinamos 'Date' y 'Time' en una sola columna 'datetime' al leer.
+        df = pd.read_csv(
+            ruta_archivo,
+            sep=';',
+            header=0,
+            names=column_names,
+            low_memory=False,
+            na_values=['?'],
+            parse_dates={'datetime': ['Date', 'Time']},
+            index_col='datetime'
+        )
+        print("Datos cargados exitosamente.")
+        return df
+
+    except FileNotFoundError:
+        print(f"Error: El archivo '{ruta_archivo}' no fue encontrado.")
+        print("Por favor, asegúrate de que el archivo DATOS.TXT esté en la misma")
+        print("carpeta que el script o actualiza la variable 'DATOS_TXT'.")
+        return None
+
+def limpiar_y_validar_datos(df):
+    """
+    Limpia el DataFrame eliminando filas con
+    valores nulos y valores fuera de rango.
+
+    Args:
+        df (pandas.DataFrame): El DataFrame
+        original.
+
+    Returns:
+        pandas.DataFrame: El DataFrame limpio y
+        validado.
+
+    """
+    print("\n--- Iniciando Limpieza y Validación de Datos ---")
+
+    # 1. Manejamos los datos faltantes
+    print(f"Forma inicial del DataFrame: {df.shape}")
+    filas_antes = df.shape[0]
+
+    # Eliminamos todas las filas que contengan al menos un valor NaN
+    df_limpio = df.dropna()
+    filas_despues_na = df_limpio.shape[0]
+    print(f"Filas eliminadas por valores faltantes: {filas_antes - filas_despues_na}")
+    print(f"Forma tras eliminar nulos: {df_limpio.shape}")
+
+    # Asegurar que los tipos de datos son correctos (ya deberían ser float)
+    for col in ['Global_active_power', 'Global_reactive_power', 'Voltage', 'Global_intensity']:
+        df_limpio[col] = df_limpio[col].astype(float)
+
+    # 2. Manejo de valores fuera de rango
+    filas_antes_rango = df_limpio.shape[0]
+
+    # Rangos válidos sugeridos
+    df_limpio = df_limpio[
+        (df_limpio['Voltage'] >= 220) & (df_limpio['Voltage'] <= 250) &
+        (df_limpio['Global_intensity'] >= 0) & (df_limpio['Global_intensity'] <= 30) &
+        (df_limpio['Global_active_power'] >= 0) & (df_limpio['Global_active_power'] <= 7) &
+        (df_limpio['Global_reactive_power'] >= 0) & (df_limpio['Global_reactive_power'] <= 2)
+    ]
+
+    filas_despues_rango = df_limpio.shape[0]
+    print(f"Filas eliminadas por valores fuera de rango: {filas_antes_rango - filas_despues_rango}")
+
+    total_filas_eliminadas = filas_antes - filas_despues_rango
+    porcentaje_eliminado = (total_filas_eliminadas / filas_antes) * 100
+
+    print(f"\nLimpieza completada. Forma final del DataFrame: {df_limpio.shape}")
+    print(f"Total de filas eliminadas: {total_filas_eliminadas} ({porcentaje_eliminado:.2f}% de los datos originales)")
+
+    return df_limpio
+
+def realizar_analisis_basico(df):
+    """
+    Realiza y muestra un análisis básico de los
+    datos del DataFrame.
+
+    Args:
+        df (pandas.DataFrame): El DataFrame
+        limpio y validado.
+    """
+    print("\n--- Iniciando Análisis Básico de Datos ---")
+
+    # Columnas de interés para el análisis
+    columnas_analisis = [
+        'Global_active_power',
+        'Global_reactive_power',
+        'Voltage',
+        'Global_intensity'
+    ]
+
+    # 1. Cálculo de media y mediana
+    print("\n1. Media y Mediana de las principales variables:")
+    for col in columnas_analisis:
+        media = df[col].mean()
+        mediana = df[col].median()
+        print(f"  - {col}:")
+        print(f"    - Media: {media:.4f}")
+        print(f"    - Mediana: {mediana:.4f}")
+
+    # 2. Ejemplo de agrupación de datos
+    print("\n2. Agrupación: Consumo promedio de Potencia Activa Global por Año:")
+    # Extraemos el año del índice 'datetime' para agrupar
+    consumo_anual = df['Global_active_power'].resample('A').mean()
+    print(consumo_anual.to_string(float_format="{:.4f}".format))
+
+def visualizar_datos(df):
+    """
+    Genera visualizaciones de los datos usando
+    matplotlib.
+
+    Args:
+        df (pandas.DataFrame): El DataFrame
+        limpio y validado.
+    """
+    print("\n--- Iniciando Visualización de Datos ---")
+
+    # 1. Histogramas para las principales variables
+    print("1. Generando histogramas de distribución...")
+    cols_to_plot = ['Global_active_power', 'Global_reactive_power', 'Voltage', 'Global_intensity']
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 10))
+    axes = axes.flatten() # Para fácil iteración
+
+    for i, col in enumerate(cols_to_plot):
+        df[col].hist(bins=50, ax=axes[i], color='skyblue', edgecolor='black')
+        axes[i].set_title(f'Distribución de {col}')
+        axes[i].set_xlabel(col)
+        axes[i].set_ylabel('Frecuencia')
+    plt.tight_layout()
+    plt.show()
+
+    # 2. Series temporales de consumo global (ejemplo para un mes para no saturar)
+    print("2. Generando series temporales de consumo (ejemplo de un mes)...")
+    # Seleccionamos un período de tiempo más corto para la visualización
+    # Por ejemplo, diciembre de 2006
+    df_sample = df['2006-12-01':'2006-12-31']
+
+    plt.figure(figsize=(15, 7))
+    plt.plot(df_sample.index, df_sample['Global_active_power'], label='Potencia Activa Global', color='blue', alpha=0.7)
+    plt.plot(df_sample.index, df_sample['Global_reactive_power'], label='Potencia Reactiva Global', color='red', alpha=0.7)
+    plt.title('Series Temporales de Potencia Global (Diciembre 2006)')
+    plt.xlabel('Fecha y Hora')
+    plt.ylabel('Potencia (kW)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+    # 3. Series temporales de sub-mediciones
+    print("3. Generando series temporales de sub-mediciones (ejemplo de un mes)...")
+    plt.figure(figsize=(15, 7))
+    plt.plot(df_sample.index, df_sample['Sub_metering_1'], label='Sub_metering_1', color='green', alpha=0.7)
+    plt.plot(df_sample.index, df_sample['Sub_metering_2'], label='Sub_metering_2', color='orange', alpha=0.7)
+    plt.plot(df_sample.index, df_sample['Sub_metering_3'], label='Sub_metering_3', color='purple', alpha=0.7)
+    plt.title('Series Temporales de Sub-Mediciones (Diciembre 2006)')
+    plt.xlabel('Fecha y Hora')
+    plt.ylabel('Energía (Wh)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def analisis_avanzado(df):
+    """
+    Realiza análisis avanzados de los datos.
+
+    Args:
+        df (pandas.DataFrame): El DataFrame
+        limpio y validado.
+    """
+    print("\n--- Iniciando Análisis Avanzado de Datos ---")
+
+    # 1. Consumo promedio por hora del día
+    print("1. Consumo promedio de Potencia Activa Global por hora del día:")
+    df['Hour'] = df.index.hour
+    hourly_consumption = df.groupby('Hour')['Global_active_power'].mean()
+    print(hourly_consumption)
+
+    plt.figure(figsize=(12, 6))
+    hourly_consumption.plot(kind='bar', color='lightcoral')
+    plt.title('Consumo Promedio de Potencia Activa Global por Hora del Día')
+    plt.xlabel('Hora del Día')
+    plt.ylabel('Potencia Activa Promedio (kW)')
+    plt.xticks(rotation=0)
+    plt.grid(axis='y', linestyle='--')
+    plt.show()
+
+    # 2. Consumo promedio por día de la semana
+    print("\n2. Consumo promedio de Potencia Activa Global por día de la semana:")
+    df['DayOfWeek'] = df.index.dayofweek # Lunes=0, Domingo=6
+    daily_consumption = df.groupby('DayOfWeek')['Global_active_power'].mean()
+    # Mapear números a nombres de días
+    days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    daily_consumption.index = daily_consumption.index.map(lambda x: days[x])
+    print(daily_consumption)
+
+    plt.figure(figsize=(10, 6))
+    daily_consumption.plot(kind='bar', color='cornflowerblue')
+    plt.title('Consumo Promedio de Potencia Activa Global por Día de la Semana')
+    plt.xlabel('Día de la Semana')
+    plt.ylabel('Potencia Activa Promedio (kW)')
+    plt.xticks(rotation=45)
+    plt.grid(axis='y', linestyle='--')
+    plt.show()
+
+    # 3. Correlaciones entre variables
+    print("\n3. Matriz de Correlación:")
+    correlation_matrix = df[['Global_active_power', 'Global_reactive_power', 'Voltage',
+                             'Global_intensity', 'Sub_metering_1', 'Sub_metering_2', 'Sub_metering_3']].corr()
+    print(correlation_matrix)
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+    plt.title('Matriz de Correlación de Variables Eléctricas')
+    plt.show()
+
+def visualizaciones_avanzadas(df):
+    """
+    Genera visualizaciones avanzadas utilizando
+    subplots y múltiples ejes.
+
+    Args:
+        df (pandas.DataFrame): El DataFrame
+        limpio y validado.
+    """
+    print("\n--- Iniciando Visualizaciones Avanzadas ---")
+
+    # Ejemplo de un día completo para visualización detallada
+    df_day = df['2007-04-28'].copy() # Elegimos el día con valores faltantes mencionados, ahora limpio
+    if df_day.empty:
+        print("El 28 de abril de 2007 no tiene datos después de la limpieza. Seleccionando otra fecha: 2007-01-01.")
+        df_day = df['2007-01-01'].copy()
+        if df_day.empty:
+            print("No hay datos para 2007-01-01. No se pueden generar visualizaciones avanzadas.")
+            return
+
+    # Subplots para mostrar varias variables en un solo gráfico temporal
+    print("1. Subplots: Potencia Activa y Voltaje a lo largo de un día.")
+    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(15, 10), sharex=True)
+
+    axes[0].plot(df_day.index, df_day['Global_active_power'], color='blue', label='Potencia Activa (kW)')
+    axes[0].set_title('Potencia Activa Global Diaria')
+    axes[0].set_ylabel('Potencia (kW)')
+    axes[0].legend()
+    axes[0].grid(True)
+
+    axes[1].plot(df_day.index, df_day['Voltage'], color='green', label='Voltaje (V)')
+    axes[1].set_title('Voltaje Diario')
+    axes[1].set_xlabel('Hora del Día')
+    axes[1].set_ylabel('Voltaje (V)')
+    axes[1].legend()
+    axes[1].grid(True)
+
+    plt.suptitle(f'Comportamiento Eléctrico el {df_day.index[0].strftime("%Y-%m-%d")}', y=1.02)
+    plt.tight_layout()
+    plt.show()
+
+    # Múltiples ejes para comparar variables con diferentes escalas
+    print("2. Múltiples Ejes: Potencia Activa vs Intensidad Global en un día.")
+    fig, ax1 = plt.subplots(figsize=(15, 7))
+
+    color = 'tab:red'
+    ax1.set_xlabel('Hora del Día')
+    ax1.set_ylabel('Potencia Activa (kW)', color=color)
+    ax1.plot(df_day.index, df_day['Global_active_power'], color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.grid(True)
+
+    ax2 = ax1.twinx()  # instanciamos un segundo eje que comparte el mismo eje x
+    color = 'tab:blue'
+    ax2.set_ylabel('Intensidad Global (A)', color=color)  # también etiquetamos el eje y
+    ax2.plot(df_day.index, df_day['Global_intensity'], color=color)
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    fig.tight_layout()  # para asegurarse de que no se superpongan las etiquetas
+    plt.title(f'Potencia Activa vs Intensidad Global el {df_day.index[0].strftime("%Y-%m-%d")}')
+    plt.show()
+
+# --- Bloque Principal de Ejecución ---
+if __name__ == "__main__":
+    # Parte 1 (Carga, limpieza y análisis básico)
+
+    # 1. Cargar datos
+    datos_df = cargar_datos(DATOS_TXT)
+
+    if datos_df is not None:
+        # 2. Documentamos el contenido y rangos (realizado a través de la limpieza)
+        # 3. Detectamos los valores faltantes/fuera de rango y ajustamos
+        datos_limpios_df = limpiar_y_validar_datos(datos_df)
+
+        # 4. Análisis básico con pandas
+        realizar_analisis_basico(datos_limpios_df)
+
+        # Parte 2 (Visualización y análisis avanzado)
+
+        # 1. Visualización con matplotlib: histogramas, series temporales
+        visualizar_datos(datos_limpios_df)
+
+        # 2. Análisis avanzado: consumo por hora/día, correlaciones
+        analisis_avanzado(datos_limpios_df)
+
+        # 3. Visualizaciones avanzadas: subplots, múltiples ejes
+        visualizaciones_avanzadas(datos_limpios_df)
+
+        # Justificación de diseños y discusión de limitaciones (Esto iría en la documentación o presentación del proyecto)
+        print("\n--- Fin de la ejecución del script PARTE2.py ---")
