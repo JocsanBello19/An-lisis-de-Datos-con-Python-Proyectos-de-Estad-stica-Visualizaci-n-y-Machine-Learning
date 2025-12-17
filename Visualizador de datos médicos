@@ -1,0 +1,87 @@
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 1. Importa los datos
+df = pd.read_csv('medical_examination.csv')
+
+# 2. Agrega columna 'overweight' (Sobrepeso)
+# IMC = peso(kg) / altura(m)^2. Si es > 25, es sobrepeso (1), si no (0).
+# Nota: La altura está en cm, hay que dividir por 100.
+df['overweight'] = (df['weight'] / ((df['height'] / 100) ** 2) > 25).astype(int)
+
+# 3. Normaliza datos (Colesterol y Glucosa)
+# 1 (bueno) -> se convierte en 0.
+# >1 (malo) -> se convierte en 1.
+df['cholesterol'] = (df['cholesterol'] > 1).astype(int)
+df['gluc'] = (df['gluc'] > 1).astype(int)
+
+# 4. Función para dibujar el Gráfico Categórico
+def draw_cat_plot():
+    # 5. Crear DataFrame para cat plot usando pd.melt
+    # Transformamos la tabla para que sea "larga" en lugar de "ancha".
+    df_cat = pd.melt(df, id_vars=['cardio'], value_vars=['cholesterol', 'gluc', 'smoke', 'alco', 'active', 'overweight'])
+
+    # 6. Agrupar y reformatear (Group and reformat)
+    # Seaborn hace gran parte de esto, pero preparamos el terreno.
+    # El gráfico debe mostrar el conteo de cada característica, dividido por cardio.
+    
+    # 7. Crear el gráfico con sns.catplot()
+    # kind='count': queremos contar cuántos hay.
+    # col='cardio': crea dos gráficos separados (0 y 1).
+    # hue='value': separa las barras dentro del gráfico (bueno/malo).
+    fig = sns.catplot(x='variable', hue='value', col='cardio', kind='count', data=df_cat).fig
+
+    # 8. Obtén la figura para la salida
+    # (Ya lo hicimos al asignar .fig arriba)
+    
+    # Esta línea ajusta la etiqueta del eje Y para pasar los tests específicos de FCC
+    fig.axes[0].set_ylabel('total')
+
+    # 9. No modificar
+    fig.savefig('catplot.png')
+    return fig
+
+
+# 10. Función para dibujar el Mapa de Calor
+def draw_heat_map():
+    # 11. Limpiar los datos (Clean the data)
+    # Filtramos segmentos incorrectos (presión imposible, altura/peso extremos)
+    df_heat = df[
+        (df['ap_lo'] <= df['ap_hi']) & 
+        (df['height'] >= df['height'].quantile(0.025)) &
+        (df['height'] <= df['height'].quantile(0.975)) &
+        (df['weight'] >= df['weight'].quantile(0.025)) &
+        (df['weight'] <= df['weight'].quantile(0.975))
+    ]
+
+    # 12. Calcular matriz de correlación
+    corr = df_heat.corr()
+
+    # 13. Generar una máscara para el triángulo superior
+    # Esto sirve para no mostrar datos duplicados en el mapa de calor (espejo).
+    mask = np.triu(np.ones_like(corr, dtype=bool))
+
+    # 14. Configura la figura de matplotlib
+    fig, ax = plt.subplots(figsize=(12, 12))
+
+    # 15. Grafica la matriz de correlación con sns.heatmap()
+    # annot=True: pone los números en los cuadritos.
+    # fmt='.1f': redondea a 1 decimal.
+    sns.heatmap(corr, mask=mask, annot=True, fmt='.1f', center=0, square=True, linewidths=.5, cbar_kws={"shrink": .5})
+
+    # 16. No modificar
+    fig.savefig('heatmap.png')
+    return fig
+
+# --- ZONA DE PRUEBA LOCAL ---
+if __name__ == "__main__":
+    # Probamos generar las imágenes
+    print("Generando gráfico categórico...")
+    draw_cat_plot()
+    print("¡'catplot.png' generado con éxito!")
+    
+    print("Generando mapa de calor...")
+    draw_heat_map()
+    print("¡'heatmap.png' generado con éxito!")
