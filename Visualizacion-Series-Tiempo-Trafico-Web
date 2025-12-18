@@ -1,0 +1,143 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+from pandas.plotting import register_matplotlib_converters
+import numpy as np
+import os
+
+# Registramos convertidores de fecha de pandas para evitar advertencias de matplotlib
+register_matplotlib_converters()
+
+# -------------------------------------------------------------------------
+# BLOQUE DE SOPORTE LOCAL (Genera datos si no tienes el archivo)
+# -------------------------------------------------------------------------
+if not os.path.exists('fcc-forum-pageviews.csv'):
+    print("No se encontró el CSV. Generando datos de prueba similares a FCC...")
+    fechas = pd.date_range(start='2016-05-09', end='2019-12-03')
+    valores = np.linspace(20000, 150000, len(fechas)) + np.random.normal(0, 10000, len(fechas))
+    df_dummy = pd.DataFrame({'date': fechas, 'value': valores})
+    df_dummy.set_index('date', inplace=True)
+    df_dummy.to_csv('fcc-forum-pageviews.csv')
+    print("Archivo 'fcc-forum-pageviews.csv' generado con éxito.\n")
+
+# -------------------------------------------------------------------------
+# 1. IMPORTAR DATOS
+# -------------------------------------------------------------------------
+# Importamos, parseamos la fecha y la establecemos como índice
+df = pd.read_csv('fcc-forum-pageviews.csv', parse_dates=['date'], index_col='date')
+
+# -------------------------------------------------------------------------
+# 2. LIMPIAR DATOS
+# -------------------------------------------------------------------------
+# Filtramos el 2.5% superior e inferior (outliers)
+limite_inferior = df['value'].quantile(0.025)
+limite_superior = df['value'].quantile(0.975)
+
+df = df[
+    (df['value'] >= limite_inferior) & 
+    (df['value'] <= limite_superior)
+]
+
+# -------------------------------------------------------------------------
+# 3. FUNCIONES DE VISUALIZACIÓN
+# -------------------------------------------------------------------------
+
+def draw_line_plot():
+    # Creamos una copia para no alterar el original
+    df_line = df.copy()
+
+    # Configuración del gráfico
+    fig, ax = plt.subplots(figsize=(15, 5))
+    
+    # Dibujamos la línea roja
+    ax.plot(df_line.index, df_line['value'], color='red', linewidth=1)
+
+    # Títulos y etiquetas requeridos por FCC
+    ax.set_title("Daily freeCodeCamp Forum Page Views 5/2016-12/2019")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Page Views")
+
+    # Guardar y retornar
+    fig.savefig('line_plot.png')
+    return fig
+
+def draw_bar_plot():
+    # Copiamos y preparamos datos: extraemos año y mes
+    df_bar = df.copy()
+    df_bar['year'] = df_bar.index.year
+    df_bar['month'] = df_bar.index.month_name()
+
+    # Agrupamos por año y mes, calculando el promedio
+    # 'unstack' convierte los meses en columnas para que matplotlib las agrupe automáticamente
+    df_grouped = df_bar.groupby(['year', 'month'])['value'].mean().unstack()
+
+    # Ordenamos las columnas (meses) cronológicamente, no alfabéticamente
+    meses_ordenados = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    df_grouped = df_grouped[meses_ordenados]
+
+    # Dibujamos el gráfico de barras
+    fig = df_grouped.plot(kind='bar', figsize=(10, 8), legend=True).figure
+
+    # Títulos y etiquetas requeridos
+    plt.xlabel("Years")
+    plt.ylabel("Average Page Views")
+    plt.legend(title="Months")
+
+    # Guardar y retornar
+    fig.savefig('bar_plot.png')
+    return fig
+
+def draw_box_plot():
+    # Copiamos y preparamos datos
+    df_box = df.copy()
+    df_box.reset_index(inplace=True)
+    
+    # Extraemos año y mes (formato corto: Jan, Feb...)
+    df_box['year'] = [d.year for d in df_box.date]
+    df_box['month'] = [d.strftime('%b') for d in df_box.date]
+
+    # Orden cronológico para los meses en el eje X
+    meses_ordenados = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ]
+
+    # Configuramos el lienzo con 2 subgráficos (side-by-side)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+
+    # Gráfico 1: Tendencia anual (Year-wise)
+    sns.boxplot(x='year', y='value', data=df_box, ax=ax1, palette='tab10', hue='year', legend=False)
+    ax1.set_title("Year-wise Box Plot (Trend)")
+    ax1.set_xlabel("Year")
+    ax1.set_ylabel("Page Views")
+
+    # Gráfico 2: Estacionalidad mensual (Month-wise)
+    sns.boxplot(x='month', y='value', data=df_box, ax=ax2, order=meses_ordenados, palette='husl', hue='month', legend=False)
+    ax2.set_title("Month-wise Box Plot (Seasonality)")
+    ax2.set_xlabel("Month")
+    ax2.set_ylabel("Page Views")
+
+    # Guardar y retornar
+    fig.savefig('box_plot.png')
+    return fig
+
+# -------------------------------------------------------------------------
+# BLOQUE PRINCIPAL (Para probarlo en VS Code)
+# -------------------------------------------------------------------------
+if __name__ == "__main__":
+    print("Generando Gráfico de Línea...")
+    draw_line_plot()
+    print("'line_plot.png' creado.")
+
+    print("Generando Gráfico de Barras...")
+    draw_bar_plot()
+    print("'bar_plot.png' creado.")
+
+    print("Generando Diagramas de Caja (Box Plots)...")
+    draw_box_plot()
+    print("'box_plot.png' creado.")
+    
+    print("\n¡Proyecto completado! Revisa los archivos PNG en tu carpeta.")
