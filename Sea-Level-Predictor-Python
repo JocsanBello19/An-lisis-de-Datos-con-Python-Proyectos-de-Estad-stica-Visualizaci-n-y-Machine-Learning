@@ -1,0 +1,89 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import linregress
+import numpy as np
+import os
+
+# -------------------------------------------------------------------------
+# BLOQUE DE SOPORTE LOCAL (Generador de datos si no tienes el archivo)
+# -------------------------------------------------------------------------
+if not os.path.exists('epa-sea-level.csv'):
+    print("No se encontró el CSV. Generando datos simulados de nivel del mar...")
+    years = np.arange(1880, 2014)
+    # Simulamos una subida con una ligera aceleración en años recientes
+    sea_levels = 0.06 * (years - 1880) + np.random.normal(0, 0.5, len(years))
+    # Aumentamos la pendiente artificialmente desde el 2000 para simular el efecto real
+    mask_recent = years >= 2000
+    sea_levels[mask_recent] += 0.1 * (years[mask_recent] - 2000)
+    
+    df_dummy = pd.DataFrame({
+        'Year': years, 
+        'CSIRO Adjusted Sea Level': sea_levels
+    })
+    df_dummy.to_csv('epa-sea-level.csv', index=False)
+    print("Archivo 'epa-sea-level.csv' generado con éxito.\n")
+
+# -------------------------------------------------------------------------
+# FUNCIÓN PRINCIPAL DEL PROYECTO
+# -------------------------------------------------------------------------
+def draw_plot():
+    # 1. Importar los datos
+    df = pd.read_csv('epa-sea-level.csv')
+
+    # 2. Crear diagrama de dispersión (Scatter Plot)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    plt.scatter(df['Year'], df['CSIRO Adjusted Sea Level'], color='blue', alpha=0.5, label='Datos Originales')
+
+    # ---------------------------------------------------------------------
+    # 3. PRIMERA LÍNEA DE REGRESIÓN (Todos los datos: 1880 - 2050)
+    # ---------------------------------------------------------------------
+    # Usamos linregress para obtener pendiente (slope) e intersección (intercept)
+    res_total = linregress(df['Year'], df['CSIRO Adjusted Sea Level'])
+    
+    # Creamos los años para la predicción extendida hasta 2050
+    years_extended = range(1880, 2051)
+    
+    # Calculamos los niveles del mar predichos (y = mx + b)
+    sea_level_pred_total = res_total.slope * years_extended + res_total.intercept
+    
+    # Dibujamos la línea roja
+    plt.plot(years_extended, sea_level_pred_total, 'r', label='Línea de Ajuste (1880-2050)')
+
+    # ---------------------------------------------------------------------
+    # 4. SEGUNDA LÍNEA DE REGRESIÓN (Datos recientes: 2000 - 2050)
+    # ---------------------------------------------------------------------
+    # Filtramos solo los datos desde el año 2000
+    df_recent = df[df['Year'] >= 2000]
+    
+    # Calculamos la nueva regresión solo con estos datos
+    res_recent = linregress(df_recent['Year'], df_recent['CSIRO Adjusted Sea Level'])
+    
+    # Creamos rango de años desde 2000 hasta 2050
+    years_recent = range(2000, 2051)
+    
+    # Calculamos la predicción
+    sea_level_pred_recent = res_recent.slope * years_recent + res_recent.intercept
+    
+    # Dibujamos la línea verde
+    plt.plot(years_recent, sea_level_pred_recent, 'green', label='Línea de Ajuste (2000-2050)')
+
+    # ---------------------------------------------------------------------
+    # 5. ETIQUETAS, TÍTULO Y GUARDADO
+    # ---------------------------------------------------------------------
+    ax.set_title("Rise in Sea Level")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Sea Level (inches)")
+    plt.legend()
+    
+    # Guardar la imagen
+    plt.savefig('sea_level_plot.png')
+    return plt.gca()
+
+# -------------------------------------------------------------------------
+# BLOQUE DE EJECUCIÓN (Para VS Code)
+# -------------------------------------------------------------------------
+if __name__ == "__main__":
+    print("Generando gráfico de predicción del nivel del mar...")
+    draw_plot()
+    print("Gráfico 'sea_level_plot.png' generado exitosamente.")
+    print("Abre la imagen para ver las dos líneas de predicción.")
